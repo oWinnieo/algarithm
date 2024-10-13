@@ -1,7 +1,7 @@
 const findSmallest = (arr) => {
     let smallest = arr[0];
     let smallestIndex = 0;
-    for (i = 0; i < arr.length; i ++) {
+    for (let i = 0; i < arr.length; i ++) {
         if (arr[i] < smallest) {
             smallest = arr[i];
             smallestIndex = i;
@@ -10,17 +10,20 @@ const findSmallest = (arr) => {
     return smallestIndex;
 }
 
-const selectSort = (arr1) => {
+const selectSort = (arr) => {
     let newArr = [];
     let smallestIndex;
-    debugger;
-    for (i = 0; i < arr1.length; i++) {
-        smallestIndex = findSmallest(arr1);
-        // let wtest = arr1.splice(3, 1);
+    // debugger;
+    for (let i = 0; i < arr.length; i++) {
+        console.log('arr.length', arr.length, 'i', i)
+        smallestIndex = findSmallest(arr);
+        // let wtestd = arr.splice(smallestIndex, 1)
+        // let wtestd = arr.pop(smallestIndex);
+        // console.log('wtestd', wtestd, 'arr', arr)
+        // newArr.push();
         // debugger;
-        // newArr.push(arr1.splice(smallestIndex, 1));
-        // newArr.push(arr.pop(smallestIndex));
-        newArr.push(i);
+        newArr.push(arr.splice(smallestIndex, 1)[0]);
+        // newArr.push(smallestIndex);
     }
     return newArr;
 }
