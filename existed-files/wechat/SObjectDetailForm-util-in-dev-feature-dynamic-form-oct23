@@ -1,0 +1,964 @@
+import TaroEnhancer from "common/enhancer/taro-enhancer";
+import { sObjectUtil, translationUtil, ts, permissionsUtil } from "metadata-parsers/utils";
+import { FORM_MODE, ICONS_CONSTANTS, PATHS_CONSTANTS, RECORD_TYPE_MASTER } from "common/constants";
+import { OBJECT_KEYS } from "common/constants/object-keys";
+import { formatSubmitResult } from "pages/app-pages/ui-renderring/SFDynamicLayout";
+import SOBJECT_NAMES from "common/constants/sobject";
+import { queryCrossObjectFields } from "utils/database/index";
+import { FIELDS } from "pages/app-pages/components/GenericWorkFlow/constants";
+import FIELD_TYPES from "common/constants/field-types";
+import store from "store";
+import { INSIGHT_UPDATED } from "utils/events/events-name";
+import Taro from "@tarojs/taro";
+import { dataUtil, andOrNotParse } from "utils/helpers";
+import isEqual from "lodash/isEqual";
+import { navigateToFn } from "utils/helpers/navigation-helper";
+import { COMPONENT_MAP_KEY } from "pages/app-pages/ui-renderring/SFComponentsFactory/constants";
+import workFlowPathDataController from "pages/app-pages/components/GenericWorkFlow/backend-service/workFlowPathDataController";
+import { filterInitialValuesByLayoutName } from "pages/app-pages/ui-renderring/SFDynamicLayout/util";
+import { updateSObject, createSObject } from "../../backend-service";
+
+const regExp = {
+  patternForCriteriaKey: /\{\!(Record).([^/]*)\}/g, // Only "Record" is supported currently.
+  // for all types: /\{\!(Record|\$User|\$Permission|\$Client).([^/]*)\}/g
+};
+
+export const getDefaultRecordType = (sObjectName) => {
+  const { metadata } = store.getState();
+  const recordTypeVisibilities = metadata.permissions.profile._recordTypeVisibilities;
+  const currentObjectRecordTypes =
+    sObjectName === "Account"
+      ? recordTypeVisibilities?.filter(
+          (item) =>
+            (item.sobject === "Account" && item.visible === true) ||
+            (item.sobject === "PersonAccount" && item.visible === true)
+        )
+      : recordTypeVisibilities?.filter((item) => item.sobject === sObjectName && item.visible === true) ?? [];
+  const defaultRecordType =
+    currentObjectRecordTypes.find((recordType) => recordType.isDefault === true)?.recordType ?? RECORD_TYPE_MASTER;
+  return defaultRecordType;
+};
+
+export const _getPageLayout = ({ metadata, recordType, sObjectName }) => {
+  const pageLayoutName = sObjectUtil.getPageLayoutName(sObjectName, recordType);
+  return metadata?.ui.pageLayouts[pageLayoutName] || {};
+};
+
+export const _handleOperationSuccess = (closeForm, successCallback, formMode) => {
+  TaroEnhancer.showToast({
+    title: translationUtil.getLabelsValue("OCE__Global_SavedSuccessfully"),
+    icon: ICONS_CONSTANTS.SUCCESS,
+    duration: 2000,
+  }).then(() => {
+    switch (formMode) {
+      case FORM_MODE.CREATE:
+        closeForm();
+        successCallback(null, null, null, null, true);
+        break;
+      case FORM_MODE.EDIT:
+        closeForm();
+        successCallback();
+        break;
+      default:
+        break;
+    }
+  });
+};
+
+export const _prepareSubmitPayload = ({ data, values, formMode, initialVal, formLayout }) => {
+  switch (formMode) {
+    // When create new form data, initial values may include extra invalid field data
+    // Will remove invalide data
+    case FORM_MODE.CREATE:
+      const result = filterInitialValuesByLayoutName({ ...values, ...initialVal }, formLayout?.fullName);
+      return result;
+    case FORM_MODE.EDIT:
+      return { changedValues: values, originalValues: data };
+    default:
+      return { ...values };
+  }
+};
+const { ID, OCE__OFFLINEUNIQUEID__C } = OBJECT_KEYS;
+const EXCLUDED_KEYS = [ID, OCE__OFFLINEUNIQUEID__C];
+export const _calculateChangedVals = (newVal = {}, originalVal = {}) => {
+  const changedVals = {};
+  changedVals[ID] = originalVal[ID];
+  changedVals[OCE__OFFLINEUNIQUEID__C] = originalVal[OCE__OFFLINEUNIQUEID__C];
+  /**
+   * Here could be some new keys which only on newVal, so we need to go through the keys of newVal
+   * instead of originalVal
+   */
+  Object.keys(newVal)
+    .filter((key) => {
+      return EXCLUDED_KEYS.indexOf(key) === -1;
+    })
+    .forEach((key) => {
+      if ([].indexOf(key) === -1 && !isEqual(newVal[key], originalVal[key])) {
+        changedVals[key] = newVal[key];
+      }
+    });
+  return changedVals;
+};
+
+export const submitFunc = (values, formMode, sObjectName) => {
+  switch (formMode) {
+    case FORM_MODE.CREATE:
+      return createSObject({ sObjectDetail: values, sObjectName });
+    case FORM_MODE.EDIT:
+      const { changedValues, originalValues } = values;
+      const sObjectDetailChanged = _calculateChangedVals(changedValues, originalValues);
+      return updateSObject({ sObjectDetailChanged, sObjectName });
+    default:
+      break;
+  }
+};
+const _checkGWFChildObjectPermissions = async ({
+  sObjectName,
+  parentWinningContextID,
+  parentContext,
+  values,
+  formMode,
+  recordType,
+}) => {
+  let hasPermission = false;
+  const gwfPermissions = await workFlowPathDataController.getWorkflowPathChildObjectPermissions({
+    sObjectName,
+    parentWinningContextID,
+    parentContext,
+    recordData: { ...values, RecordTypeId: recordType?.Id, RecordTypeId__lookup: recordType },
+    formMode,
+  });
+  if (gwfPermissions?.error) {
+    throw gwfPermissions?.error;
+  }
+  const { OCE__Create__c, OCE__Edit__c } = gwfPermissions || {};
+  switch (formMode) {
+    case FORM_MODE.EDIT:
+      hasPermission = OCE__Edit__c;
+      break;
+    case FORM_MODE.CREATE:
+      hasPermission = OCE__Create__c;
+      break;
+    default:
+      break;
+  }
+  return hasPermission;
+};
+const _checkGWFPermissions = async ({ sObjectName, recordData, formMode, recordType }) => {
+  let hasPermission = false;
+  const permissions = await workFlowPathDataController.getWorkflowPathObjectPermissions({
+    sObjectName,
+    recordData: { ...recordData, RecordTypeId: recordType?.Id, RecordTypeId__lookup: recordType },
+  });
+  if (permissions?.error) {
+    throw permissions?.error;
+  }
+  // If sObject does not has GWF check, then permissions would be null, which means GWF permission does not block following process
+  if (!permissions) {
+    hasPermission = true;
+  } else {
+    // @ts-ignore
+    const { OCE__Edit__c, OCE__Create__c } = permissions;
+    switch (formMode) {
+      case FORM_MODE.EDIT:
+        hasPermission = OCE__Edit__c;
+        break;
+      case FORM_MODE.CREATE:
+        hasPermission = OCE__Create__c;
+        break;
+      default:
+        break;
+    }
+  }
+  return hasPermission;
+};
+export const generateSubmitFunc =
+  ({
+    submitFunc: _submitFunc,
+    showErrorBanner,
+    successCallback,
+    closeCreateForm,
+    formMode,
+    data,
+    initialVal,
+    sObjectName,
+    formLayout,
+    parentWinningContextID,
+    parentContext,
+    recordTypeMap,
+    defaultRecordTypeId,
+  }) =>
+  async (values) => {
+    Taro.showLoading({ title: translationUtil.getLabelsValue("OCE__Loading"), mask: true });
+    const selectedRecordTypeId = values?.RecordTypeId || defaultRecordTypeId;
+    const selectedRecordType = Object.values(recordTypeMap)?.find(
+      (recordType) => selectedRecordTypeId && recordType?.Id === selectedRecordTypeId
+    );
+    /**
+     * https://jiraims.rm.imshealth.com/wiki/pages/viewpage.action?spaceKey=OD&title=28.+Enable+GWF+On+All+Detail+Tabs
+     * Create sObjectDetail and childSObjectDetail GWF permission check
+     */
+    // Check GWFChildObjectPermissions when editing by GWFControlled with parentWinningContext.
+    try {
+      if (parentWinningContextID) {
+        const hasGWFChildObjectPermission = await _checkGWFChildObjectPermissions({
+          sObjectName,
+          parentWinningContextID,
+          parentContext,
+          values,
+          formMode,
+          recordType: selectedRecordType,
+        });
+
+        if (!hasGWFChildObjectPermission) {
+          const objectNameWithTranslation = translationUtil.getObjectsLabel(sObjectName);
+          const recordTypeNameLabel = selectedRecordType?.Name;
+          showErrorBanner(
+            translationUtil.getLabelsValue("OCE__Workflows_SObjectCanNotBeCreated", [
+              recordTypeNameLabel
+                ? `${objectNameWithTranslation} - ${recordTypeNameLabel}`
+                : `${objectNameWithTranslation}`,
+            ])
+          );
+          Taro.hideLoading();
+          return;
+        }
+      } else {
+        // Check GWF Permissions
+        //as an object should check parent level or child level only, but not check both,
+        //as chlild object mergepermission  logic already cover by backend , this is redudent logic should add "else" branch logic,
+        const hasGWFPermission = await _checkGWFPermissions({
+          sObjectName,
+          recordData: values,
+          formMode,
+          recordType: selectedRecordType,
+        });
+        if (!hasGWFPermission) {
+          const objectNameWithTranslation = translationUtil.getObjectsLabel(sObjectName);
+          const recordTypeNameLabel = selectedRecordType?.Name;
+          showErrorBanner(
+            translationUtil.getLabelsValue("OCE__Workflows_SObjectCanNotBeCreated", [
+              recordTypeNameLabel
+                ? `${objectNameWithTranslation} - ${recordTypeNameLabel}`
+                : `${objectNameWithTranslation}`,
+            ])
+          );
+          Taro.hideLoading();
+          return;
+        }
+      }
+    } catch (error) {
+      showErrorBanner(error?.errMsg);
+      Taro.hideLoading();
+      return;
+    }
+
+    const _values = formatSubmitResult(formLayout, values);
+    const payload = _prepareSubmitPayload({ data: data || {}, values: _values, formMode, initialVal, formLayout });
+    const res = await _submitFunc(payload, formMode, sObjectName);
+    Taro.hideLoading();
+    if (res?.validationWarning) return res;
+    if (res?.error) {
+      showErrorBanner(res?.error?.errMsg);
+      return;
+    }
+    const insightRelatedObjectNames = [
+      SOBJECT_NAMES.INSIGHT,
+      SOBJECT_NAMES.VOTE,
+      SOBJECT_NAMES.INSIGHT_PRODUCT,
+      SOBJECT_NAMES.INSIGHT_TOPIC,
+    ];
+    if (insightRelatedObjectNames.includes(sObjectName)) {
+      Taro.eventCenter.trigger(INSIGHT_UPDATED);
+    }
+    if (formMode === FORM_MODE.CREATE) {
+      const id = res?.data;
+      navigateToFn({
+        url: `${
+          PATHS_CONSTANTS.BUSINESS_COMPONENTS.SOBJECT_DETAIL_PAGE2
+        }?id=${id}&sObjectName=${sObjectName}&title=${ts.objectsLabel(sObjectName)}`,
+      });
+    }
+    _handleOperationSuccess(closeCreateForm, successCallback, formMode);
+  };
+
+const getTabInstancelist = (targetFlexiPage) => {
+  const targetRegion = targetFlexiPage?.flexiPageRegions?.find((i) => i.name === "main");
+  const mainInstance = targetRegion?.itemInstances?.filter((i) => {
+    return i?.componentInstance?.componentName === "flexipage:tabset";
+  })?.[0];
+  let tabsList = mainInstance.itemInstances?.map((i) => {
+    return i?.componentInstance?.componentInstanceProperties?.find((j) => j.name === "title").value;
+  });
+  if (!tabsList) {
+    tabsList = [];
+  }
+  const tabInstancelist =
+    mainInstance?.itemInstances?.map((instance) => ({
+      tabComponent: instance,
+      tabType: "flexipage",
+      loaded: false,
+    })) || [];
+  return tabInstancelist;
+};
+
+const calcFilterItem = ({ leftValue, rightValue, operator, isNumber, isBoolean }) => {
+  const leftNumber = Number(leftValue) || 0;
+  const rightNumber = Number(rightValue) || 0;
+  const leftBoolean = isBoolean ? (leftValue ? true : false) : leftValue;
+  const rightBoolean = isBoolean ? (rightValue === "true" ? true : false) : rightValue;
+  switch (operator) {
+    case "contains":
+      return leftValue.includes(rightValue);
+    case "equals":
+    case "equal":
+      return isBoolean
+        ? leftBoolean === rightBoolean
+        : isNumber
+        ? leftNumber === rightNumber
+        : leftValue === rightValue;
+    case "greaterorequal":
+    case "greaterthanorequalto":
+    case "ge":
+      return isNumber
+        ? leftNumber >= rightNumber
+        : leftValue?.toString()?.localeCompare(rightValue) || leftValue === rightValue;
+    case "greaterthan":
+    case "gt":
+      return isNumber ? leftNumber > rightNumber : leftValue?.toString()?.localeCompare(rightValue);
+    case "lessorequal":
+    case "lessthanorequalto":
+    case "le":
+      return isNumber
+        ? leftNumber <= rightNumber
+        : rightValue?.toString()?.localeCompare(leftValue) || rightValue === rightValue;
+    case "lessthan":
+    case "lt":
+      return isNumber ? leftNumber < rightNumber : rightValue?.toString()?.localeCompare(leftValue);
+    case "notequal":
+    case "ne":
+      return isNumber ? leftNumber !== rightNumber : leftValue !== rightValue;
+    case "startswith":
+      return !leftValue ? false : leftValue.indexOf(rightValue) === 0;
+    case "endswith":
+      const splitArr = leftValue.split(rightValue);
+      return !leftValue ? false : splitArr[splitArr.length - 1] === "";
+    case "notcontain":
+      return !leftValue.includes(rightValue);
+    case "isnull":
+      return leftValue === null;
+    case "isnotnull":
+      return leftValue !== null;
+  }
+};
+
+export const parseBooleanFilter = ({ booleanFilter, criteriaResArr }) => {
+  if (!booleanFilter) {
+    return true;
+    // If some bug made the booleanFilter undefined or null,
+    // it means the logic string's parse is failed,
+    // so set the visibility as true as the error handling.
+  }
+  const booleanFilterNoSpace = booleanFilter.replace(/[\s]/g, "");
+  const booleanFilterUpperCase = booleanFilterNoSpace.toUpperCase();
+  const booleanRes = andOrNotParse({ expr: booleanFilterUpperCase, mapping: criteriaResArr });
+  return [true, false].includes(booleanRes) ? booleanRes : true;
+  // In case that booleanRes === undefined or null,
+  // it means the logic string's parse is failed,
+  // so set the visibility as true as the error handling.
+};
+
+const clearOutGroup = (_referenceToArr) => {
+  const groupIndex = _referenceToArr.indexOf("group");
+  if (groupIndex >= 0) {
+    _referenceToArr.splice(groupIndex, 1);
+  }
+  return _referenceToArr;
+};
+
+export const ifLookupType = (_type) => {
+  return [FIELD_TYPES.LOOKUP, FIELD_TYPES.REFERENCE, FIELD_TYPES.MASTERDETAIL, FIELD_TYPES.HIERARCHY].includes(_type);
+};
+const findChildField = ({ objectCurr, fieldArr, sObjects }) => {
+  let fieldName = fieldArr.shift();
+  if (fieldName.includes("__r")) {
+    fieldName = fieldName.replace("__r", "__c");
+    const fieldValueType = objectCurr?.[fieldName]?.type.toLowerCase();
+    if (ifLookupType(fieldValueType)) {
+      let objsTargetArr = objectCurr?.[fieldName]?.referenceTo;
+      objsTargetArr = clearOutGroup(objsTargetArr);
+      const objTarget = sObjects[objsTargetArr[0]];
+      if (objTarget && fieldArr.length >= 1) {
+        return findChildField({ objectCurr: objTarget?.fields, fieldArr, sObjects });
+      }
+    }
+  } else {
+    if (fieldArr.length > 0) {
+      return findChildField({ objectCurr: objectCurr?.[fieldName], fieldArr, sObjects });
+    } else {
+      const fieldTarget = objectCurr?.[fieldName];
+      return fieldTarget;
+    }
+  }
+};
+const findLeftValueInfo = ({ valueKey, fieldsForSObject }) => {
+  const fieldNestedArr = valueKey.split(".");
+  if (fieldNestedArr.length <= 1) {
+    return fieldsForSObject?.[valueKey];
+  }
+  const { metadata } = store.getState();
+  const sObjects = metadata?.sObjects;
+  return findChildField({ objectCurr: fieldsForSObject, fieldArr: fieldNestedArr, sObjects });
+};
+
+/**
+ * check type of the field
+ * @param {*} param0
+ * @returns
+ */
+export const getTypeOfField = ({ fieldName, paramsForCriteria }) => {
+  const fieldsForSObject = paramsForCriteria?.fieldsForSObject;
+  return fieldsForSObject?.[Object.keys(fieldsForSObject)?.find((field) => field === fieldName)]?.type;
+};
+/**
+ * When lookup fields updated, it need to get the new related field values of lookup field
+ * @param {*} param0
+ * @returns
+ */
+export const getNewLeftKeyArrCache = async ({ sObjectName, objectId, paramsForCriteria, fieldName, fieldValue }) => {
+  const typeOfField = getTypeOfField({ fieldName, paramsForCriteria });
+  if (ifLookupType(typeOfField?.toLowerCase())) {
+    const resLookup = await getCrossObjectValue({
+      sObjectName,
+      objectId,
+      leftKeyArr: paramsForCriteria?.leftKeyArrCache,
+      dataList: {
+        ...paramsForCriteria?.dataObj,
+        [fieldName]: fieldValue,
+      },
+    });
+    return resLookup;
+  } else {
+    return false;
+  }
+};
+/**
+ * Get result (true or false) for each criteria item
+ */
+const getBooleanResForEachCriteriaItem = ({ dataObj, criteria, crossObjVal, fieldsForSObject }) => {
+  regExp.patternForCriteriaKey.lastIndex = 0;
+  const execRes = regExp.patternForCriteriaKey.exec(criteria?.leftValue);
+  let leftValue = "";
+  const leftValueKey = execRes?.[2];
+  if (execRes?.[2]) {
+    leftValue = fieldsForSObject[leftValueKey]
+      ? dataObj?.[leftValueKey] || ""
+      : crossObjVal?.data?.records?.[0]?.[leftValueKey] || "";
+  }
+  let rightValue = criteria?.rightValue;
+
+  const operator = criteria?.operator.toLowerCase();
+  const valueType = findLeftValueInfo({ valueKey: leftValueKey, fieldsForSObject })?.type;
+  const isNumber = dataUtil.dataTypeCheck(leftValue) === "number" || ["Percent", "Number"].includes(valueType);
+  const isBoolean = dataUtil.dataTypeCheck(leftValue) === "boolean" || ["Checkbox"].includes(valueType);
+  let leftValueNew;
+  if (operator !== "isnull" && operator !== "isnotnull") {
+    leftValueNew = leftValue === null ? "" : leftValue;
+  }
+  if (["notequal", "ne", "equals", "equal"].includes(operator)) {
+    rightValue = rightValue === undefined ? "" : rightValue;
+    leftValueNew = leftValueNew === undefined ? "" : leftValueNew;
+  }
+  return calcFilterItem({
+    leftValue: leftValueNew,
+    rightValue,
+    operator,
+    isNumber,
+    isBoolean,
+  });
+};
+
+const getCriteriaResArr = ({ visibilityRule, dataObj, crossObjVal, fieldsForSObject }) => {
+  if (!visibilityRule || !visibilityRule.criteria) {
+    return;
+  }
+  const criteriaResArr = {};
+  visibilityRule?.criteria?.forEach((criteria, index) => {
+    const indexStr = (index + 1).toString();
+    const res = getBooleanResForEachCriteriaItem({
+      dataObj,
+      criteria,
+      crossObjVal,
+      fieldsForSObject,
+    });
+    criteriaResArr[indexStr] = res !== false;
+    // only when res === false, return false, others return true
+    // If some bug made the res undefined or null,
+    // it means the criteria rule's parse is failed,
+    // so set the boolean res as true as the error handling.
+  });
+  return criteriaResArr;
+};
+
+const parseVisibilityRule = ({ dataObj, visibilityRule, crossObjVal, fieldsForSObject }) => {
+  if (!visibilityRule) {
+    return true;
+    // If some bug made the visibilityRule undefined or null, or there's no criteria rule
+    // it means the logic string's parse is failed,
+    // so set the visibility as true as the error handling.
+  }
+  if (dataUtil.dataTypeCheck(visibilityRule.criteria) === "object") {
+    const res = getBooleanResForEachCriteriaItem({
+      dataObj,
+      criteria: visibilityRule.criteria,
+      crossObjVal,
+      fieldsForSObject,
+    });
+    return res !== false;
+    // only when res === false, return false, others return true
+    // If some bug made the res undefined or null,
+    // it means the criteria rule's parse is failed,
+    // so set the boolean res as true as the error handling.
+  }
+  const criteriaResArr = getCriteriaResArr({
+    visibilityRule,
+    dataObj,
+    crossObjVal,
+    fieldsForSObject,
+  });
+  if (!criteriaResArr) {
+    return true;
+    // If some bug made the criteriaResArr undefined or null,
+    // it means the criteria rule's parse is failed,
+    // so set the visibility as true as the error handling.
+  }
+  return parseBooleanFilter({
+    booleanFilter: visibilityRule?.booleanFilter,
+    criteriaResArr,
+  });
+};
+const getFieldsFromSObjectDependsFormValuesWithVisibility = ({
+  sObjectName,
+  fieldsForSObject,
+  fieldsArr,
+  typeOfPermission,
+  crossObjVal,
+  dataObj,
+  layoutBefore = null,
+  recordType = "",
+  recordTypeBefore = "",
+}) => {
+  const fieldsAdded = [];
+  const fieldsRemoved = [];
+  const fieldResArr = [];
+  fieldsArr.forEach((field, index) => {
+    const fieldName = field.fieldInstance.fieldItem.split(".")[1];
+    const permissionObj = permissionsUtil.getFieldPermission(sObjectName, fieldName)[fieldName];
+    if (!permissionObj || !permissionObj.readable) {
+      return;
+    }
+    const permission = permissionObj[typeOfPermission];
+    if (permission || (!permission && typeOfPermission === "editable")) {
+      let isVisible = true;
+      /* criteria checking */
+      if (field?.fieldInstance?.visibilityRule) {
+        isVisible = parseVisibilityRule({
+          dataObj,
+          visibilityRule: field?.fieldInstance?.visibilityRule,
+          crossObjVal,
+          fieldsForSObject,
+        });
+      }
+      /* /criteria checking */
+      if (layoutBefore?.length >= 0 && recordType === recordTypeBefore) {
+        if (isVisible && layoutBefore.filter((layoutField) => layoutField.index === index).length <= 0) {
+          fieldsAdded.push(fieldsForSObject?.[fieldName]?.label);
+        } else if (!isVisible && layoutBefore.filter((layoutField) => layoutField.index === index).length === 1) {
+          fieldsRemoved.push(fieldsForSObject?.[fieldName]?.label);
+        }
+      }
+      if (isVisible) {
+        fieldResArr.push({
+          ...fieldsForSObject[fieldName],
+          index,
+          behavior:
+            !permission && typeOfPermission === "editable"
+              ? "Readonly"
+              : field?.fieldInstance?.fieldInstanceProperties?.find(
+                  (fieldInstance) => fieldInstance?.name === "uiBehavior"
+                ).value,
+        });
+      }
+    }
+  });
+  return {
+    fieldArr: fieldResArr,
+    fieldsAdded,
+    fieldsRemoved,
+  };
+};
+
+/**
+ * get all leftKeys (from criteria), for cross object value getting on next step.
+ * one criteria is like : {
+     leftValue: "{!Record.OCE__AccountName__c}"
+     operator: "CONTAINS"
+     rightValue: "ABC"
+ }
+ */
+const getAllLeftKeys = ({ fieldInstance }) => {
+  const leftKeyArr = [];
+  const visibilityRule = fieldInstance?.visibilityRule;
+  if (!visibilityRule) {
+    return;
+  }
+  if (visibilityRule?.booleanFilter) {
+    visibilityRule?.criteria?.forEach((criteria) => {
+      if (criteria.leftValue) {
+        regExp.patternForCriteriaKey.lastIndex = 0;
+        const execRes = regExp.patternForCriteriaKey.exec(criteria.leftValue);
+        if (execRes?.[2]) {
+          leftKeyArr.push(execRes?.[2]);
+        }
+      }
+    });
+  } else {
+    if (visibilityRule?.criteria.leftValue) {
+      regExp.patternForCriteriaKey.lastIndex = 0;
+      const execRes = regExp.patternForCriteriaKey.exec(visibilityRule?.criteria.leftValue);
+      if (execRes?.[2]) {
+        leftKeyArr.push(execRes?.[2]);
+      }
+    }
+  }
+  return leftKeyArr;
+};
+
+const getCrossObjectValue = async ({ sObjectName, objectId, leftKeyArr, dataList = null }) => {
+  if (!leftKeyArr || leftKeyArr.length === 0) {
+    return;
+  }
+  const { application } = store.getState();
+  const _ = application?.dbHandler?.command;
+
+  const res = await queryCrossObjectFields(sObjectName, leftKeyArr, {
+    filter: !dataList
+      ? _.or([{ [FIELDS.COMMOMFIELDS.ID]: objectId }, { [FIELDS.COMMOMFIELDS.OFFLINEID]: objectId }])
+      : null,
+    dataList: [dataList],
+    dependentValues: {},
+  });
+  return res;
+};
+
+export const criteriaInfoPreparationForSingleFieldSection = async ({ itemInstances, sObjectName, objectId }) => {
+  let fieldsArr = [];
+  itemInstances.forEach((item) => {
+    fieldsArr = [...fieldsArr, ...item.itemInstances];
+  });
+  let leftKeyArr = [];
+  itemInstances?.forEach((item1) => {
+    item1?.itemInstances?.forEach((item2) => {
+      if (item2?.fieldInstance) {
+        const res = getAllLeftKeys({ fieldInstance: item2?.fieldInstance });
+        if (res) {
+          leftKeyArr = [...leftKeyArr, ...res];
+        }
+      }
+    });
+  });
+  let crossObjVal;
+  /* criteria */
+  if (leftKeyArr?.length > 0) {
+    crossObjVal = await getCrossObjectValue({
+      sObjectName,
+      objectId,
+      leftKeyArr: Array.from(new Set(leftKeyArr)),
+    });
+  }
+  /* /criteria */
+  return {
+    crossObjVal,
+    fieldsArr,
+  };
+};
+
+/**
+ * This is for layout preparation of view page.
+ * @param {*} itemInstances: Object
+ * @param {*} sObjectName: String
+ * @param {*} objectId: String
+ * @param {*} data: Object
+ */
+export const prepareFieldSetObjs = ({ sObjectName, dataObj, fieldsArr, crossObjVal }) => {
+  const fieldsForSObject = sObjectUtil.getSobjectData(sObjectName)?.fields;
+  const { fieldArr } = getFieldsFromSObjectDependsFormValuesWithVisibility({
+    sObjectName,
+    fieldsForSObject,
+    fieldsArr,
+    typeOfPermission: "readable",
+    crossObjVal,
+    dataObj,
+  });
+  return {
+    displayedFields: fieldArr,
+  };
+};
+
+const setItemInstancesHasFieldSection = (tabInstancelist) => {
+  const res = {};
+  tabInstancelist
+    .filter(
+      (instance) =>
+        instance?.tabComponent?.componentInstance?.componentName === COMPONENT_MAP_KEY.FLEXIPAGE_TAB &&
+        !!instance?.tabComponent?.itemInstances.find(
+          (instance2) => instance2?.componentInstance?.componentName === COMPONENT_MAP_KEY.FLEXIPAGE_FIELD_SECTION
+        )
+    )
+    ?.forEach((fieldSectionTab) => {
+      fieldSectionTab?.tabComponent?.itemInstances?.forEach((item) => {
+        if (item?.componentInstance?.componentName === COMPONENT_MAP_KEY.FLEXIPAGE_FIELD_SECTION) {
+          let layoutArr = [];
+          item?.itemInstances?.forEach((itemInstance) => {
+            if (itemInstance?.componentInstance?.componentName === COMPONENT_MAP_KEY.FLEXIPAGE_COLUMN) {
+              layoutArr = [...layoutArr, ...itemInstance?.itemInstances];
+            }
+          });
+          const fieldSectionLabel = item?.componentInstance?.componentInstanceProperties?.find(
+            (property) => property?.name === "label"
+          )?.value;
+          const fieldSectionId = item?.componentInstance?.identifier;
+          const labelTranslation = ts.labelsValue(fieldSectionLabel) || fieldSectionLabel;
+          res[fieldSectionId] = {
+            labelTranslation,
+            layoutArr,
+          };
+        }
+      });
+    });
+  return res;
+};
+const setCrossObjVal = async ({ sObjectName, objectId, itemInstancesHasFieldSection }) => {
+  let leftKeyArrNew = [];
+  let leftKeyArrNoDup = [];
+  let crossObjValNew;
+  Object.keys(itemInstancesHasFieldSection)?.forEach((key) => {
+    if (itemInstancesHasFieldSection[key]) {
+      itemInstancesHasFieldSection[key]?.layoutArr?.forEach((layout) => {
+        if (layout?.fieldInstance) {
+          const res = getAllLeftKeys({ fieldInstance: layout.fieldInstance });
+          if (res) {
+            leftKeyArrNew = [...leftKeyArrNew, ...res];
+          }
+        }
+      });
+    }
+  });
+
+  const {
+    pages: {
+      businessComponents: { fieldSection },
+    },
+  } = store.getState();
+
+  leftKeyArrNoDup = Array.from(new Set(leftKeyArrNew));
+  const leftKeyArrWithValue = fieldSection[`${sObjectName}-${objectId}`]
+    ? Object.keys(fieldSection[`${sObjectName}-${objectId}`])
+    : [];
+  const leftKeyArrWithoutValue = leftKeyArrNoDup.filter((key) => !leftKeyArrWithValue.includes(key));
+  if (leftKeyArrWithoutValue?.length > 0) {
+    crossObjValNew = await getCrossObjectValue({
+      sObjectName,
+      objectId,
+      leftKeyArr: leftKeyArrWithoutValue,
+    });
+  }
+  crossObjValNew.data.records[0] = {
+    ...crossObjValNew.data.records[0],
+    ...fieldSection[`${sObjectName}-${objectId}`],
+  };
+  return {
+    leftKeyArrNoDup,
+    crossObjValNew,
+  };
+};
+
+const getDefaultValueForFields = (fieldsForSObject) => {
+  const defaultValues = [];
+  Object.keys(fieldsForSObject).forEach((key) => {
+    const field = fieldsForSObject?.[key];
+    if (field?.type?.toLowerCase() === FIELD_TYPES.PICKLIST) {
+      const defaultValue = field.picklistValues.find((value) => value.isDefault);
+      if (defaultValue) {
+        defaultValues.push({
+          field: field.fullName,
+          defaultValue: defaultValue?.fullName,
+        });
+      }
+    }
+  });
+  return defaultValues;
+};
+
+export const getAllFieldSection = ({ sObjectName, recordType, metadata }) => {
+  const fieldsForSObject = sObjectUtil.getSobjectData(sObjectName)?.fields;
+
+  //Todo: compose fieldSectionsLayout for form
+  const targetRecordType = metadata?.sObjects?.[sObjectName]?.recordTypes?.find((i) => i.fullName === recordType);
+  let targetFlexiPage = {};
+  let itemInstancesHasFieldSection;
+  if (targetRecordType?.flexiPage) {
+    targetFlexiPage = metadata?.ui?.flexiPages[targetRecordType.flexiPage];
+  } else {
+    return {
+      fieldsForSObject,
+    };
+  }
+  if (!targetFlexiPage) {
+    return {
+      fieldsForSObject,
+    };
+  }
+  if (targetFlexiPage) {
+    const tabInstancelist = getTabInstancelist(targetFlexiPage);
+    /**
+     * To filter out the instances that contains fieldSection
+     */
+
+    if (tabInstancelist?.length > 0) {
+      itemInstancesHasFieldSection = setItemInstancesHasFieldSection(tabInstancelist);
+    }
+  }
+  return {
+    itemInstancesHasFieldSection,
+    targetFlexiPage,
+    fieldsForSObject,
+  };
+};
+
+let leftKeyArrCache = null;
+let crossObjValCache = null;
+
+/**
+ * prepare informations for criteria of FieldSection
+ * @param {*} sObjectName: String
+ * @param {*} objectId: String
+ * @param {*} recordType: String
+ * @param {*} metadata: Object
+ * @param {*} dataObj: Object
+ * @returns
+ */
+export const criteriaInfoPreparation = async ({ sObjectName, objectId, recordType, metadata }) => {
+  const { itemInstancesHasFieldSection, targetFlexiPage, fieldsForSObject } = getAllFieldSection({
+    sObjectName,
+    recordType,
+    metadata,
+  });
+  const defaultValues = getDefaultValueForFields(fieldsForSObject);
+  leftKeyArrCache = leftKeyArrCache || null;
+  crossObjValCache = crossObjValCache || null;
+
+  if (targetFlexiPage) {
+    /* for criteria crossObject value */
+    if (Object.keys(itemInstancesHasFieldSection)?.length > 0) {
+      const { leftKeyArrNoDup, crossObjValNew } = await setCrossObjVal({
+        sObjectName,
+        objectId,
+        itemInstancesHasFieldSection,
+      });
+      crossObjValCache = crossObjValNew;
+      leftKeyArrCache = leftKeyArrNoDup;
+    }
+    /* /for criteria crossObject value */
+    return {
+      fieldsForSObject,
+      targetFlexiPage,
+      itemInstancesHasFieldSection:
+        Object.keys(itemInstancesHasFieldSection)?.length > 0 ? itemInstancesHasFieldSection : null,
+      crossObjValCache,
+      leftKeyArrCache,
+      defaultValues,
+    };
+  }
+  return {
+    fieldsForSObject,
+  };
+};
+
+/**
+ * get FieldSections components from all tabInstance got from metadata
+ * @param {*} sObjectName: String
+ * @param {*} dataObj: Object
+ * @param {*} paramsForCriteria: Object
+ *  {
+ *    fieldsForSObject,
+ *    targetFlexiPage,
+ *    itemInstancesHasFieldSection,
+ *    crossObjVal
+ *  }
+ * @returns
+ */
+
+export const getFieldSectionsLayoutFromFlexipage = ({
+  sObjectName,
+  dataObj = null,
+  paramsForCriteria,
+  layoutArrBefore,
+  recordType,
+  recordTypeBefore,
+}) => {
+  const {
+    fieldsForSObject,
+    targetFlexiPage,
+    itemInstancesHasFieldSection,
+    crossObjValCache: crossObjVal,
+  } = paramsForCriteria;
+  if (targetFlexiPage && itemInstancesHasFieldSection) {
+    let fieldsAddedAll = [];
+    let fieldsRemovedAll = [];
+    const res = Object.keys(itemInstancesHasFieldSection)?.map((key) => {
+      if (!key) {
+        return;
+      }
+      const { fieldArr, fieldsAdded, fieldsRemoved } = getFieldsFromSObjectDependsFormValuesWithVisibility({
+        sObjectName,
+        fieldsForSObject,
+        fieldsArr: itemInstancesHasFieldSection?.[key]?.layoutArr,
+        typeOfPermission: "editable",
+        crossObjVal: crossObjVal || null,
+        dataObj,
+        layoutBefore:
+          layoutArrBefore
+            ?.find((layout) => layout.flexipage_component_id === key)
+            ?.layoutColumns?.[0]?.layoutItems.map((item) => ({
+              fullName: item.fullName,
+              index: item.index,
+            })) || null,
+        recordType: recordType || "",
+        recordTypeBefore: recordTypeBefore || "",
+      });
+      const resItem = {
+        customLabel: true,
+        detailHeading: true,
+        editHeading: true,
+        label: itemInstancesHasFieldSection?.[key]?.labelTranslation,
+        layoutColumns: [{ layoutItems: fieldArr }],
+        style: "TwoColumnsTopToBottom",
+        flexipage_component_id: key,
+        fieldsAdded,
+        fieldsRemoved,
+      };
+      fieldsAddedAll = [...fieldsAddedAll, ...fieldsAdded];
+      fieldsRemovedAll = [...fieldsRemovedAll, ...fieldsRemoved];
+      return resItem;
+    });
+    return {
+      res: res?.length > 0 ? res : null,
+      fieldsAddedAll,
+      fieldsRemovedAll,
+    };
+  }
+  return {
+    res: null,
+  };
+};
