@@ -11,19 +11,12 @@ const findSmallest = (arr) => {
 }
 
 const selectSort = (arr) => {
+    let arrOriLen = arr.length;
     let newArr = [];
     let smallestIndex;
-    // debugger;
-    for (let i = 0; i < arr.length; i++) {
-        console.log('arr.length', arr.length, 'i', i)
+    for (let i = 0; i < arrOriLen; i++) {
         smallestIndex = findSmallest(arr);
-        // let wtestd = arr.splice(smallestIndex, 1)
-        // let wtestd = arr.pop(smallestIndex);
-        // console.log('wtestd', wtestd, 'arr', arr)
-        // newArr.push();
-        // debugger;
         newArr.push(arr.splice(smallestIndex, 1)[0]);
-        // newArr.push(smallestIndex);
     }
     return newArr;
 }
