@@ -1,61 +1,86 @@
 const staNeeded = [
-    "mt", "wa", "or", "id", "nv" // wtest , "ut", "ca", "az"
+    "mt", "wa", "or", "id", "nv", "ut", "ca", "az"
 ]
 const stations = {
-    // 'k1': ['id', 'nv', 'ut'],
-    // 'k2': ['wa', 'id', 'mt'],
-    // 'k3': ['or', 'nv', 'ca'],
-    // 'k4': ['nv', 'ut'],
-    // 'k5': ['ca', 'az']
-    'k1': ['mt', 'wa'],
-    'k2': ['wa', 'or']
+    'k1': ['id', 'nv', 'ut'],
+    'k2': ['wa', 'id', 'mt'],
+    'k3': ['or', 'nv', 'ca'],
+    'k4': ['nv', 'ut'],
+    'k5': ['ca', 'az']
+    // 'k1': ['mt', 'wa'],
+    // 'k2': ['wa', 'or']
 }
-
+// wtest find the most matched item everytime
 const find = () => {
-    let finSta = [];
+    let finSta = new Set();
+    let staNeededTemp = JSON.parse(JSON.stringify(staNeeded))
     
-    let count = 1;
+    // let count = 1;
     // let coveredSta = new Set();
-    let coveredSta = [];
-    // while (staNeeded.length) {
-    while(count >= 0) {
-        count--;
+    
+    while (staNeededTemp.length) {
+        console.log('staNeededTemp >>>--- ------', staNeededTemp)
+        debugger;
+    // while(count >= 0) {
+        // count--;
         let bestSta;
+        let coveredSta = [];
         for (station in stations) {
+            console.log('for >>>--- station', station, 'stations', stations);
+            debugger;
             let states_for_station = stations[station];
-            console.log('station', station, 'states_for_station', states_for_station);
+            // console.log('station', station, 'states_for_station', states_for_station);
             let covered = [];
             /* 求交集 */
-            staNeeded.forEach(item_for => {
+            staNeededTemp.forEach(item_for => {
                 
                 if (states_for_station.indexOf(item_for) >= 0) {
                     
-                    console.log('item_for', item_for, 'states_for_station', states_for_station)
+                    // console.log('item_for', item_for, 'states_for_station', states_for_station)
                     covered.push(item_for)
 
                 }
             })
-            console.log('covered', covered, 'len', covered?.length);
+            // console.log('staNeededTemp', staNeededTemp);
+            // console.log('states_for_station', states_for_station);
+            // console.log('coered 交集', covered, 'len', covered?.length);
+            // console.log('coveredSta', coveredSta);
             // debugger;
             if (covered.length > coveredSta.length) {
                 best_station = station;
                 coveredSta = covered;
-                // debugger;
             }
-            coveredSta.forEach(v => {
-                staNeeded.splice(staNeeded.indexOf(v), 1)
+            console.log('best_station', best_station);
+            console.log('coveredSta', coveredSta, 'staNeededTemp', staNeededTemp);
+            let staNeededNew = staNeededTemp.filter(item => {
+                
+                return !coveredSta.includes(item);
             })
-            console.log('staNeeded', staNeeded);
+            staNeededTemp = staNeededNew;
+            // console.log('staNeededNew', staNeededNew);
+            
+            // debugger;
+            if (coveredSta?.length > 0) {
+                // finSta.add({
+                //     staName: best_station,
+                //     coveredSta: coveredSta,
+                // })
+                finSta.add(best_station);
+            }            
+            console.log('staNeededTemp', staNeededTemp);
+            console.log('finSta', finSta);
+            debugger;
             
         }
     }
-    console.log('coveredSta', coveredSta);
+    return finSta
+    // console.log('coveredSta', coveredSta);
 
 }
 
 console.log('1', find())
 
-/* wtest ori *
+/* wtest ori */
 #!/usr/bin/env python
 # coding:utf-8
 
