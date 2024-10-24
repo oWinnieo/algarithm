@@ -60,7 +60,7 @@ console.log('arr3_1 === arrCopy3_1', arr3_1 === arrCopy3_1);
 /**
  * 3.2 利用递归进行深拷贝
  */
-function deepCopy (val) {
+function deepCopy (val) { // wtest waiting
     return Array.isArray(val) ? Array.from(arr3_2, deepCopy) : val 
 }
 const arr3_2 = [[1, 2, 3], ['dongdong', 'haohao', 'haha']];
