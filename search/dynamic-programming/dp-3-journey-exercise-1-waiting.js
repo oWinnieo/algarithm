@@ -12,19 +12,23 @@
 
 const list = {
     p1: {
-        time: 1, // 0.5,
+        name: 'p1',
+        time: 0.5, // 1, // 0.5,
         score: 7
     },
     p2: {
-        time: 2, // 0.5,
+        name: 'p2',
+        time: 0.5, // 2, // 0.5,
         score: 8, // 6
     },
     p3: {
-        time: 3, // 1,
+        name: 'p3',
+        time: 1, // 3, // 1,
         score: 9
     },
     p4: {
-        time: 1, // 2,
+        name: 'p4',
+        time: 2, // 1, // 2,
         score: 6, // 7
     },
     // p5: {
@@ -32,51 +36,33 @@ const list = {
     //     score: 8
     // }
 }
-const totalTime = 4
+const totalTime = 2
 const wtestC = 0;
 
 
-const maxScore = (list, totalTime, path) => {
+const maxScore = (list, totalTime, timeUnit, path) => {
     console.log('--->>> totalTime', totalTime, 'list', list);
-    // const scoreObj = Array.from({length: totalTime}, () => 0)
     /* wtest */
-    const scoreObj = {}
-    Object.keys(list).forEach(key => {
-        console.log('key', key)
-        scoreObj[list[key].name] = 0;
-    })
-    /* /wtest */
-    const nodes = Object.keys(scoreObj)
-    console.log('scoreObj', scoreObj, 'nodes', nodes)
-
-    for (let i = 0; i < list.length; i++) {
-        console.log('i', i)
-        debugger;
-        while (nodes.length) {
-            nodes.sort((a, b) => scoreObj[b] - scoreObj[a]);
-            let nodeTarget = nodes.shift();
-            let scoreNew = list[nodeTarget].score + score
-            scoreObj[nodeTarget] + maxScore(list)
-        }
-        // for (let j = totalTime; j >= list[i].time; j--) {
-        //     scoreObj[j] = Math.max(scoreObj[j], scoreObj[j - list[i].time] + list[i].score)
-        //     console.log({i, j}, 'scoreObj', scoreObj)
-
-        // }
+    const scoreObjByTime = {}
+    for (let t = timeUnit; t <= totalTime; t=t+timeUnit) {
+        scoreObjByTime[t] = 0;
     }
-
-    // while(list.length) {
-    //     list.sort((a, b) => b.score - a.score);
-    //     const itemTarget = list.shift();
-    //     for (i = 0; i < list.length; i++) {
-    //         const scoreNew = itemTarget.score + maxScore(list, totalTime - itemTarget.time, path)
-    //         if (scoreNew > scoreObj[itemTarget]) {
-    //             // path.set(itemTarget.key, itemTarget.score)
-    //             scoreObj[itemTarget] = scoreNew
-    //         }
-    //     }
-    // }
-    return scoreObj[totalTime]
+    /* /wtest */
+    for (let i = 0; i < list.length; i++) {
+        let totalTimeTemp = totalTime
+        while (totalTimeTemp > 0) {
+            let scoreNew = scoreObjByTime[totalTimeTemp - list[i].time] ?
+                scoreObjByTime[totalTimeTemp - list[i].time] + list[i].score :
+                list[i].score
+            if (scoreNew > scoreObjByTime[totalTimeTemp] || !scoreObjByTime[totalTimeTemp]) {
+                scoreObjByTime[totalTimeTemp] = scoreNew
+            }
+            totalTimeTemp = totalTimeTemp - timeUnit
+        }
+    }
+    console.log('scoreObjByTime', scoreObjByTime)
+    // debugger;
+    return Object.values(scoreObjByTime).sort((a, b) => b - a)[0]
 }
 // const finding = (list, totalTime) => {
 //     const path = new Map()
@@ -117,5 +103,12 @@ function maximizeValue(attractions, days) {
     return dp[days];
 }
 
-const res1 = maximizeValue(attractions, totalTime)
-console.log('res1', res1, 'list', attractions);
+const list2Arr = Object.keys(list).map(key => {
+    return {
+        name: key,
+        time: list[key].time,
+        score: list[key].score
+    }
+})
+const res1 = maxScore(attractions, 4, 1)
+console.log('res1', res1, 'list', list);
