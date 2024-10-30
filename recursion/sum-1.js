@@ -1,11 +1,11 @@
 const arrData = [1, 2, 3, 4, 5, 6];
 const sum1 = (arr) => {
     let total = 0;
-    // for (let x in arr) { // wtest key
+    // for (let x in arr) { // wtest for in: key
     //     total += Number(x)
     // }
     let arrTemp = JSON.parse(JSON.stringify(arrData))
-    for (let x of arrTemp) { // wtest value
+    for (let x of arrTemp) { // wtest for of: value
         total += x
     }
     return total
