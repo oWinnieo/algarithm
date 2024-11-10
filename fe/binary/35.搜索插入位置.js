@@ -75,6 +75,23 @@ const searchInsert2 = (nums, target) => {
     return left
 }
 
+const searchInsert3 = (nums, target) => {
+    let left = 0;
+    let right = nums.length - 1;
+    let mid = 0;
+    while (left <= right) {
+        mid = Math.ceil((left + right) / 2);
+        if (target === nums[mid]) {
+            return mid
+        } else if (target < nums[mid]) {
+            right = mid - 1
+        } else {
+            left = mid + 1
+        }
+    }
+    return left
+}
+
 let nums1 = [1,3,5,6]
 let target1 = 5
 
@@ -111,6 +128,8 @@ console.log('res5', res5)
 const res6 = searchInsert(nums6, target6)
 console.log('res6', res6)
 
+/* *** */
+
 const res21 = searchInsert2(nums1, target1)
 console.log('res21', res21)
 
@@ -128,3 +147,23 @@ console.log('res25', res25)
 
 const res26 = searchInsert2(nums6, target6)
 console.log('res26', res26)
+
+/* *** */
+
+const res31 = searchInsert3(nums1, target1)
+console.log('res31', res31)
+
+const res32 = searchInsert3(nums2, target2)
+console.log('res32', res32)
+
+const res33 = searchInsert3(nums3, target3)
+console.log('res33', res33)
+
+const res34 = searchInsert3(nums4, target4)
+console.log('res34', res34)
+
+const res35 = searchInsert3(nums5, target5)
+console.log('res35', res35)
+
+const res36 = searchInsert3(nums6, target6)
+console.log('res36', res36)
