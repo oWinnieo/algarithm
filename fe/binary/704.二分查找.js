@@ -26,5 +26,29 @@ nums 的每个元素都将在 [-9999, 9999]之间。
 */
 
 const search = (nums, target) => {
-    
+    let left = 0;
+    let right = nums.length - 1;
+    let mid = 0;
+    while (left <= right) {
+        mid = Math.ceil((left + right) / 2);
+        if (target === nums[mid]) {
+            return mid
+        } else if (target < nums[mid]) {
+            right = mid - 1
+        } else {
+            left = mid + 1
+        }
+    }
+    return -1
 }
+
+let nums1 = [-1,0,3,5,9,12]
+let target1 = 9
+
+let nums2 = [-1,0,3,5,9,12]
+let target2 = 2
+const res1 = search(nums1, target1);
+console.log('res1', res1)
+
+const res2 = search(nums2, target2);
+console.log('res2', res2)
