@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中等大小爱心</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 150vh;
+            background-color: #f8f9fa;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="heartCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById("heartCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // 设置画布尺寸
+        canvas.width = 300; // 宽度
+        canvas.height = 300; // 高度
+
+        // 绘制爱心
+        function drawHeart(x, y, size, color) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(size, size);
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.bezierCurveTo(0, -3, 3, -3, 3, 0); // 右半部分顶部
+            ctx.bezierCurveTo(3, 3, 0, 9, 0, 8); // 右半部分底部
+            ctx.bezierCurveTo(0, 9, -3, 3, -3, 0); // 左半部分底部
+            ctx.bezierCurveTo(-3, -3, 0, -3, 0, 0); // 左半部分顶部
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // 定义爱心参数
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const heartSize = 30; // 中等大小
+        const heartColor = "#FF6B6B"; // 红色爱心
+
+        // 调用绘制函数
+        drawHeart(centerX, centerY, heartSize, heartColor);
+    </script>
+</body>
+</html>

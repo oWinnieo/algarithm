@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大爱心</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="heartCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById("heartCanvas");
+        const ctx = canvas.getContext("2d");
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        function drawHeart(x, y, size, color) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(size, size);
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.bezierCurveTo(0, -3, 3, -3, 3, 0);
+            ctx.bezierCurveTo(3, 3, 0, 6, 0, 8);
+            ctx.bezierCurveTo(0, 6, -3, 3, -3, 0);
+            ctx.bezierCurveTo(-3, -3, 0, -3, 0, 0);
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // 绘制一个大的爱心
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const heartSize = Math.min(canvas.width, canvas.height) / 200; // 根据屏幕大小调整比例
+        const heartColor = "#FF69B4"; // 粉红色
+
+        drawHeart(centerX, centerY, heartSize * 50, heartColor);
+
+        // 窗口调整时重新绘制爱心
+        window.addEventListener("resize", () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            drawHeart(canvas.width / 2, canvas.height / 2, heartSize * 50, heartColor);
+        });
+    </script>
+</body>
+</html>

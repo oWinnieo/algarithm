@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>胖爱心</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #fef3f3;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="heartCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById("heartCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // 设置画布尺寸
+        canvas.width = 300;
+        canvas.height = 300;
+
+        // 绘制胖爱心
+        function drawFatHeart(x, y, size, color) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(size, size);
+
+            // 开始绘制路径
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+
+            // 上部的两个圆弧更圆
+            ctx.bezierCurveTo(0, -5, 5, -5, 5, 0); // 右上
+            ctx.bezierCurveTo(5, 5, 0, 8, 0, 10); // 右下
+
+            ctx.bezierCurveTo(0, 8, -5, 5, -5, 0); // 左下
+            ctx.bezierCurveTo(-5, -5, 0, -5, 0, 0); // 左上
+
+            // 结束路径并填充
+            ctx.closePath();
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // 定义爱心参数
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const heartSize = 10; // 中等胖爱心
+        const heartColor = "#FF5C8D"; // 鲜艳的粉红色
+
+        // 绘制胖爱心
+        drawFatHeart(centerX, centerY, heartSize, heartColor);
+    </script>
+</body>
+</html>
