@@ -143,11 +143,36 @@ console.log('res2', res2);
 const res3 = sum_250325_1(nums3, target3);
 console.log('res3', res3);
 
-const res11 = sum_250325_2(nums1, target1);
-console.log('1 res11', res11);
+// const res11 = sum_250325_2(nums1, target1);
+// console.log('1 res11', res11);
 
-const res21 = sum_250325_2(nums2, target2);
+// const res21 = sum_250325_2(nums2, target2);
+// console.log('res21', res21);
+
+// const res31 = sum_250325_2(nums3, target3);
+// console.log('res31', res31);
+
+const get2Sum_250330_1 = (nums, target) => {
+    let left = 0
+    let right = nums.length - 1
+    while (left < right) {
+        let sum = nums[left] + nums[right]
+        if (sum === target) {
+            return [left + 1, right + 1]
+        } else if (sum > target) {
+            right--
+        } else {
+            left++
+        }
+    }
+    return false
+}
+
+const res11 = get2Sum_250330_1(nums1, target1);
+console.log('get2Sum_250330_1 res11', res11);
+
+const res21 = get2Sum_250330_1(nums2, target2);
 console.log('res21', res21);
 
-const res31 = sum_250325_2(nums3, target3);
+const res31 = get2Sum_250330_1(nums3, target3);
 console.log('res31', res31);
