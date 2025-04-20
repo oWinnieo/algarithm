@@ -176,6 +176,8 @@ const iteration_exercise_241202_1 = (root) => {
     return res
 }
 
+
+
 const res1 = traversal_exercise_241115(rr1)
 console.log('res1', res1)
 

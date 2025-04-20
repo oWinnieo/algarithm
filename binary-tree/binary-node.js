@@ -1,13 +1,31 @@
 /*
 js实现二叉树
 */
-class TreeNode {
+class TreeNode_backup1 {
     constructor(value, left, right) {
         this.value = value ? value : 0
         this.left = left ? left : null
         this.right = right ? right : null
     }
 }
+
+class TreeNode_backup2 {
+    constructor(value, left, right) {
+        this.value = value ? value : 0
+        this.left = left ? left : null
+        this.right = right ? right : null
+    }
+}
+
+class TreeNode {
+    constructor (value, left, right) {
+        this.value = value ? value : 0
+        this.left = left ? left : null
+        this. right = right ? right : null
+    }
+}
+
+
 const a1 = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
 
 const r1 = new TreeNode('A')

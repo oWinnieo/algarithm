@@ -32,6 +32,17 @@ board[i][j] 是一位数字或者 '.'
 题目数据 保证 输入数独仅有一个解
 */
 
+const board1 = [
+    ["5","3",".",".","7",".",".",".","."],
+    ["6",".",".","1","9","5",".",".","."],
+    [".","9","8",".",".",".",".","6","."],
+    ["8",".",".",".","6",".",".",".","3"],
+    ["4",".",".","8",".","3",".",".","1"],
+    ["7",".",".",".","2",".",".",".","6"],
+    [".","6",".",".",".",".","2","8","."],
+    [".",".",".","4","1","9",".",".","5"],
+    [".",".",".",".","8",".",".","7","9"]
+]
 /**
  * @param {character[][]} board
  * @return {void} Do not return anything, modify board in-place instead.
@@ -40,3 +51,15 @@ var solveSudoku = function(board) {
     
 };
 
+const sudoku_250418_1 = (board) => {
+    let resArr = []
+    const isValid = (board, row, col) => {
+
+    }
+    const dfs = (board, row, col) => {
+        if (row >= n) {
+            resArr.push()
+        }
+    }
+    dfs(JSON.parse(JSON.stringify(board)), 0, 0)
+}

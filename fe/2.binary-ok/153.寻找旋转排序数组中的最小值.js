@@ -183,26 +183,56 @@ const findMax_250328_1 = (nums) => {
     return nums[left]
 }
 
-const res11 = findMin_250328_1(nums1)
-console.log('findMin_250328_1 res11', res11)
+const findMin_250408_1 = (nums) => {
+    let left = 0
+    let right = nums.length - 1
+    let mid = 0
+    while (left < right) {
+        mid = Math.floor((left + right) / 2)
+        if (nums[mid] < nums[right]) {
+            right = mid
+        } else {
+            left = mid + 1
+        }
+    }
+    return nums[right]
+}
 
-const res21 = findMin_250328_1(nums2)
+const findMax_250408_1 = (nums) => {
+    let left = 0
+    let right = nums.length - 1
+    let mid = 0
+    while (left < right) {
+        mid = Math.ceil((left + right) / 2)
+        if (nums[mid] < nums[left]) {
+            right = mid - 1
+        } else {
+            left = mid
+        }
+    }
+    return nums[left]
+}
+
+const res11 = findMin_250408_1(nums1)
+console.log('findMin_250408_1 res11', res11)
+
+const res21 = findMin_250408_1(nums2)
 console.log('res21', res21)
 
-const res31 = findMin_250328_1(nums3)
+const res31 = findMin_250408_1(nums3)
 console.log('res31', res31)
 
-const res41 = findMin_250328_1(nums4)
+const res41 = findMin_250408_1(nums4)
 console.log('res41', res41)
 
-const res12 = findMax_250328_1(nums1)
-console.log('findMax_250328_1 res12', res12)
+const res12 = findMax_250408_1(nums1)
+console.log('findMax_250408_1 res12', res12)
 
-const res22 = findMax_250328_1(nums2)
+const res22 = findMax_250408_1(nums2)
 console.log('res22', res22)
 
-const res32 = findMax_250328_1(nums3)
+const res32 = findMax_250408_1(nums3)
 console.log('res32', res32)
 
-const res42 = findMax_250328_1(nums4)
+const res42 = findMax_250408_1(nums4)
 console.log('res42', res42)
