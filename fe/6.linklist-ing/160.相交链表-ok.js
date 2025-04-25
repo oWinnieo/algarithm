@@ -88,3 +88,75 @@ listB 中节点数目为 n
 var getIntersectionNode = function(headA, headB) {
     
 };
+
+// console.log('headA_1', headA_1, 'headB_1', headB_1, 'headB_1_skip', headB_1_skip)
+console.log('a1', listToArray(headA_1), 'b1', listToArray(headB_1_skip))
+const getIntersectNode_250425_1 = (headA, headB) => {
+    let curA = headA
+    let curB = headB
+    while (curA !== curB) {
+        curA = curA.next ? curA.next : headB
+        curB = curB.next ? curB.next : headA
+        // console.log('curA', curA.val, 'curB', curB.val)
+        debugger;
+    }
+    return curA
+}
+
+const getIntersectionNode_250425_2 = (headA, headB) => {
+    let curA = headA
+    let curB = headB
+    while (curA !== curB) {
+        curA = curA.next ? curA.next : headB
+        curB = curB.next ? curB.next : headA
+    }
+    return curA
+}
+
+const getListLen = (head) => {
+    let len = 0;
+    let cur = head
+    while (cur) {
+        cur = cur.next
+        len++
+    }
+    // debugger;
+    return len
+}
+
+const getIntersectionNode_250425_3 = (headA, headB) => {
+    let lenA = getListLen(headA)
+    let lenB = getListLen(headB)
+    let curA = headA
+    let curB = headB
+    // debugger;
+    if (lenA < lenB) {
+        [lenA, lenB] = [lenB, lenA]
+        // debugger;
+        [curA, curB] = [curB, curA]
+    }
+    let i = lenA - lenB
+    // debugger;
+    while (i) {
+        curA = curA.next
+        i--
+    }
+    // console.log('curA', curA.val)
+    while (curA && curA !== curB) {
+        curA = curA.next
+        curB = curB.next
+    }
+    // debugger;
+    return curA === curB ? curA : null
+}
+
+const res1 = getIntersectionNode_250425_3(headA_1, headB_1_skip)
+console.log('getIntersectionNode_250425_3 res1', res1)
+
+// // console.log('a2', listToArray(headA_2), 'b2', listToArray(headB_2_skip))
+
+const res2 = getIntersectionNode_250425_3(headA_2, headB_2_skip)
+console.log('res2', res2)
+
+const res3 = getIntersectionNode_250425_3(headA_3, headB_3)
+console.log('res3', res3)

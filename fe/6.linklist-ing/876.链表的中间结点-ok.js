@@ -42,3 +42,26 @@
 var middleNode = function(head) {
     
 };
+
+const middleNode_250425_1 = (head) => {
+    let slow = head
+    let fast = head
+    while (fast && fast.next && fast.next.next) {
+        slow = slow.next
+        fast = fast.next.next
+    }
+    let middleNodeArr = []
+    if (fast.next) {
+        middleNodeArr.push(slow)
+        middleNodeArr.push(slow.next)
+    } else {
+        middleNodeArr.push(slow)
+    }
+    return middleNodeArr
+}
+
+const res1 = middleNode_250425_1(head81)
+console.log('res1', res1)
+
+const res2 = middleNode_250425_1(head82)
+console.log('res2', res2)

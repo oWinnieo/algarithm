@@ -60,3 +60,34 @@ pic same with 141.
 var detectCycle = function(head) {
     
 };
+
+const detectCycle_250423_1 = (head) => {
+    if (!head || !head.next) return null
+    let fast = head.next.next
+    let slow = head.next
+    while (fast && fast.next && fast !== slow) {
+        fast = fast.next.next
+        slow = slow.next
+    }
+    slow = head
+    while (fast && fast !== slow) {
+        fast = fast.next
+        slow = slow.next
+    }
+    return slow
+}
+
+console.log('headCycle1Arr', headCycle1Arr)
+console.log('headCycle1', headCycle1)
+const res1 = detectCycle_250423_1(headCycle1)
+console.log('detectCycle_250423_1 res1', res1)
+
+console.log('headCycle2Arr', headCycle2Arr)
+console.log('headCycle2', headCycle2)
+const res2 = detectCycle_250423_1(headCycle2)
+console.log('res2', res2)
+
+console.log('headCycle3Arr', headCycle3Arr)
+console.log('headCycle3', headCycle3)
+const res3 = detectCycle_250423_1(headCycle3)
+console.log('res3', res3)

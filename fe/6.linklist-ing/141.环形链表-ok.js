@@ -58,3 +58,39 @@ pos 为 -1 或者链表中的一个 有效索引 。
 var hasCycle = function(head) {
     
 };
+
+const hasCycle_250422_1 = (head) => {
+    if (!head || !head.next) return false
+    let fast = head.next.next
+    let slow = head.next
+    // debugger;
+    while (fast && fast.next && fast !== slow) {
+        // debugger;
+        fast = fast.next.next
+        slow = slow.next
+    }
+    // debugger;
+    return (fast !== slow && !fast || !fast.next) ? false : true 
+    // if (!fast || !fast.next) return false
+    // fast = head
+    // while (fast !== slow) {
+    //     fast = fast.next
+    //     slow = slow.next
+    // }
+    // return fast
+}
+
+console.log('headCycle1Arr', headCycle1Arr)
+console.log('headCycle1', headCycle1)
+const res1 = hasCycle_250422_1(headCycle1)
+console.log('res1', res1)
+
+console.log('headCycle2Arr', headCycle2Arr)
+console.log('headCycle2', headCycle2)
+const res2 = hasCycle_250422_1(headCycle2)
+console.log('res2', res2)
+
+console.log('headCycle3Arr', headCycle3Arr)
+console.log('headCycle3', headCycle3)
+const res3 = hasCycle_250422_1(headCycle3)
+console.log('res3', res3)
