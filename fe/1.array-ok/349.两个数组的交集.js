@@ -75,14 +75,51 @@ const intersection_250326_2 = (arr1, arr2) => {
     return arrNew
 }
 
-const res11 = intersection_250326_1(n11, n12)
-console.log('intersection_250326_1 res11', res11)
+const intersection_250427_1 = (arr1, arr2) => {
+    let setRes = new Set()
+    let set1 = new Set(arr1)
+    console.log('set1', set1)
+    for (let i of arr2) {
+        // console.log('i', i)
+        if (set1.has(i)) {
+            setRes.add(i)
+        }
+    }
+    return [...setRes]
+}
 
-const res21 = intersection_250326_1(n21, n22)
-console.log('intersection_250326_1 res21', res21)
+const intersection_250427_2 = (arr1, arr2) => {
+    let setRes = new Set()
+    let map1 = new Map()
+    for (let i of arr1) {
+        map1.set(i, 1)
+    }
+    for (let j of arr2) {
+        if (map1.get(j) === 1) {
+            setRes.add(j)
+        }
+    }
+    console.log('map1', map1)
+    return [...setRes]
+}
 
-const res12 = intersection_250326_2(n11, n12)
-console.log('intersection_250326_2 res12', res12)
+const res11 = intersection_250427_1(n11, n12)
+console.log('intersection_250427_1 res11', res11)
 
-const res22 = intersection_250326_2(n21, n22)
-console.log('intersection_250326_2 res22', res22)
+const res12 = intersection_250427_2(n11, n12)
+console.log('intersection_250427_2 res12', res12)
+
+const res21 = intersection_250427_1(n21, n22)
+console.log('intersection_250427_1 res21', res21)
+
+const res22 = intersection_250427_2(n21, n22)
+console.log('intersection_250427_2 res22', res22)
+
+// const res21 = intersection_250326_1(n21, n22)
+// console.log('intersection_250326_1 res21', res21)
+
+// const res12 = intersection_250326_2(n11, n12)
+// console.log('intersection_250326_2 res12', res12)
+
+// const res22 = intersection_250326_2(n21, n22)
+// console.log('intersection_250326_2 res22', res22)

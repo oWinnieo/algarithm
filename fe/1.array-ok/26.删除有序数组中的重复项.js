@@ -85,6 +85,8 @@ const nums1 = [1, 1, 2];
 const nums2 = [0, 0, 1, 1, 1, 2, 2, 3, 3, 4];
 const nums3 = [1,1,1,1,1,2,2,5,5,5]
 
+const nums22 = [0, 0, 1, 1, 1, 2, 2, 3, 3, 4];
+
 // const res1 = repeatDelete_exercise(nums2)
 // console.log('res1', res1)
 
@@ -157,6 +159,21 @@ const demo_250325_1 = (nums) => {
     // 著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
 }
 
+const delRep_250427_1 = (nums) => {
+    let slow = 0
+    let fast = 0
+    while (fast < nums.length) {
+        if (nums[slow] !== nums[fast]) {
+            slow++
+            nums[slow] = nums[fast]
+        }
+        fast++
+    }
+    return nums.slice(0, slow + 1)
+}
+
+
+
 // const res_250325_1 = repeatDel_250325_1(nums3)
 // console.log('repeatDel_250325_1 res_250325_1', res_250325_1)
 // const res_250325_2 = repeatDel_250325_1(nums2)
@@ -181,3 +198,10 @@ console.log('res_250325_22', res_250325_22)
 // console.log('funByDaSheng res_250325_14', res_250325_14)
 // const res_250325_24 = demo_250325_1(nums2)
 // console.log('res_250325_24', res_250325_24)
+
+const res1 = delRep_250427_1(nums1)
+console.log('res1', res1)
+const res2 = delRep_250427_1(nums22)
+console.log('res2', res2)
+const res3 = delRep_250427_1(nums3)
+console.log('res3', res3)

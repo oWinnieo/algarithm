@@ -147,7 +147,26 @@ const delCertainItem_250325_1 = (nums, val) => {
     }
 }
 
-const res_250325_1 = delCertainItem_250325_1(nums1, val1);
-console.log('delCertainItem_250325_1 res_250325_1', res_250325_1);
-const res_250325_2 = delCertainItem_250325_1(nums2, val2);
-console.log('delCertainItem_250325_1 res_250325_2', res_250325_2);
+const delCertainItem_250427_1 = (nums, val) => {
+    let slow = 0
+    let fast = 0
+    while (fast < nums.length) {
+        if (nums[fast] !== val) {
+            nums[slow] = nums[fast]
+            slow++
+        }
+        fast++
+    }
+    return nums.slice(0, slow)
+}
+
+// const res_250325_1 = delCertainItem_250325_1(nums1, val1);
+// console.log('delCertainItem_250325_1 res_250325_1', res_250325_1);
+// const res_250325_2 = delCertainItem_250325_1(nums2, val2);
+// console.log('delCertainItem_250325_1 res_250325_2', res_250325_2);
+
+const res1 = delCertainItem_250427_1(nums1, val1);
+console.log('delCertainItem_250427_1 res1', res1);
+
+const res2 = delCertainItem_250427_1(nums2, val2);
+console.log('delCertainItem_250427_1 res2', res2);

@@ -70,3 +70,12 @@ LRUCache.prototype.put = function(key, value) {
  * var param_1 = obj.get(key)
  * obj.put(key,value)
  */
+
+/*
+https://blog.csdn.net/Yu_Cblog/article/details/136592410
+一篇搞懂什么是LRU缓存｜一篇搞懂LRU缓存的实现｜LRUCache详解和实现
+*/
+
+https://leetcode.cn/problems/fibonacci-number/
+file:///Users/ryuuna/Documents/GitHub/algarithm/algarithm-main.html
+https://programmercarl.com/0225.%E7%94%A8%E9%98%9F%E5%88%97%E5%AE%9E%E7%8E%B0%E6%A0%88.html#%E6%80%9D%E8%B7%AF
